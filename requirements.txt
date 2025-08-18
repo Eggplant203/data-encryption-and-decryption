@@ -1,0 +1,15 @@
+# Core image processing libraries
+pillow>=9.0.0  # For image manipulation and processing
+numpy>=1.21.0  # For efficient array operations
+
+# GUI toolkit (included in Python standard library, listed for clarity)
+# tkinter
+
+# Standard library modules used
+# os
+# io
+# sys
+# random
+# string
+# subprocess
+# threading
