@@ -1,8 +1,13 @@
 # src/image_mode.py
-from PIL import Image
+from PIL import Image, ImageFile
 import io
 import numpy as np
 import math
+
+# Disable DecompressionBombWarning
+# This is necessary when working with large image files
+Image.MAX_IMAGE_PIXELS = None  # Disable the maximum pixel limit check
+ImageFile.LOAD_TRUNCATED_IMAGES = True  # Allow loading of truncated image data
 
 def encode(data: bytes, encoding: str = "utf-8") -> str:
     """

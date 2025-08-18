@@ -95,3 +95,11 @@ The Image encoding mode converts binary data into color pixels in a PNG image:
 - Pillow 9.0.0+ (for image processing)
 - NumPy 1.21.0+ (for array operations)
 - Standard library modules (tkinter, os, io, sys, etc.)
+
+## License
+
+The project is distributed under the MIT license. See the `LICENSE` file for details.
+
+## Author
+
+© 2025 - Developed by Eggpant203 🍆
