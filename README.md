@@ -1,105 +1,127 @@
-# File Encoder/Decoder
+# Data Encryption and Decryption Tool
 
-A powerful and user-friendly application for encoding files into various formats and decoding them back to their original state. This tool provides multiple encoding methods with optional encryption for secure file transformation.
+A comprehensive application for encoding and decoding files using 15 different methods with advanced options and security features.
 
-## Table of Contents
+## 🚀 Quick Start
 
-- [Overview](#overview)
-- [Features](#features)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Encoding Modes](#encoding-modes)
-  - [Text-Based Encoding](#text-based-encoding)
-  - [Image Encoding](#image-encoding)
-- [Security](#security)
-- [Directory Structure](#directory-structure)
-- [Requirements](#requirements)
+1. **Install dependencies:**
 
-## Overview
-
-This application transforms files between human-readable and machine-readable formats using multiple encoding algorithms. It provides a graphical user interface for easy interaction and supports various encoding methods including Base32, Base64, Base85, Hex, and image-based encoding.
-
-## Features
-
-- **Multiple Encoding Methods**: Support for Base32, Base64, Base85, Hex, and image-based encoding
-- **XOR Encryption**: Optional encryption using a custom key for added security
-- **Randomized Filenames**: Option to generate random filenames for output files
-- **Progress Tracking**: Real-time progress monitoring with detailed status updates
-- **Chunk Processing**: Efficient handling of large files through chunk-based processing
-- **Intuitive UI**: User-friendly interface with clear operation controls
-- **Error Handling**: Comprehensive error detection and user notifications
-
-## Installation
-
-1. Clone the repository:
-
-   ```
-   git clone https://github.com/Eggplant203/data-encryption-and-decryption.git
-   cd data-encryption-and-decryption
-   ```
-
-2. Install required packages:
-
-   ```
+   ```bash
    pip install -r requirements.txt
    ```
 
-3. Run the application:
-   ```
+2. **Run the application:**
+
+   ```bash
    python main.py
    ```
 
-## Usage
+3. **Usage:**
+   - Select Encode/Decode operation
+   - Browse for input file or enter text directly
+   - Choose from 15 encoding modes
+   - Configure options and click Start
 
-1. **Select Operation**: Choose between Encode or Decode
-2. **Select File**: Browse for the input file
-3. **Choose Encoding Mode**: Select from Base32, Base64, Base85, Hex, or Image
-4. **Configure Options**: Set string encoding, enable encryption, or use random filenames
-5. **Process**: Click Start to begin the encoding or decoding process
-6. **View Results**: After processing, you can open the resulting file directly
+## 📋 Encoding Modes
 
-## Encoding Modes
+### Text-Based
 
-### Text-Based Encoding
+- **Base32/64/85/91**: Standard text encoding formats
+- **Binary/Hex**: Simple binary representations
+- **Braille**: Unicode Braille character mapping
 
-- **Base32**: RFC 4648 compliant Base32 encoding, suitable for case-insensitive systems
-- **Base64**: Standard Base64 encoding for binary data
-- **Base85**: More compact than Base64, using 85 characters for representation
-- **Hex**: Simple hexadecimal representation of binary data
+### Visual
 
-### Image Encoding
+- **QR Code**: Scannable 2D codes with error correction
+- **Barcode**: Professional 1D barcodes with custom text
+- **Image**: Data encoded as RGB pixels in PNG
+- **Chess**: Interactive chess board positions
+- **Sudoku**: Puzzle grid coordinates
 
-The Image encoding mode converts binary data into color pixels in a PNG image:
+### Audio/Creative
 
-- Each pixel stores 3 bytes of data (one byte per RGB channel)
-- The image dimensions are calculated to create a roughly square image
-- Metadata about the original file is embedded for proper decoding
-- String encoding settings affect only metadata, not the pixel data itself
-- XOR encryption can be applied before pixel conversion for enhanced security
+- **Sound (MIDI)**: Musical note sequences
+- **Emoji**: Emoji character sequences
+- **UUID**: UUID-embedded data
 
-## Security
+### Steganographic
 
-- **XOR Encryption**: Simple but effective when combined with a strong key
-- **Random Names**: Hide the original filename for additional obscurity
-- **Format Obfuscation**: Image encoding hides data in visually neutral pixel patterns
+- **Zero-Width**: Invisible Unicode characters
+- **Image Steganography**: Hidden pixel data
 
-## Directory Structure
+## ⚙️ Key Features
 
-- **human_files/**: Storage for original, human-readable files
-- **machine_files/**: Storage for encoded, machine-readable files
-- **src/**: Source code for the application modules
+- **🔍 Smart Search**: Find modes quickly with Ctrl+F
+- **🔐 XOR Encryption**: Optional key-based security
+- **📊 Interactive Viewers**: Chess and Sudoku visualization
+- **⚡ Progress Tracking**: Real-time processing feedback
+- **🎨 Dynamic Options**: Context-sensitive settings
+- **📁 Auto Organization**: Separate human/machine file directories
 
-## Requirements
+## 🛠️ Mode Options
+
+Different modes offer specific customization options:
+
+- **QR Code**: Error correction level, size, border
+- **Barcode**: Type, dimensions (mm), custom text, font size (pt)
+- **Sound**: Encoding method, tempo, note duration
+- **Sudoku**: Grid seed, shuffle key, format style
+- **Chess**: Interactive viewer, PNG export
+- **Emoji**: Shuffle patterns for obfuscation
+- **Image**: PNG compression levels (0-9)
+
+## 🔒 Security
+
+- **XOR Encryption**: Apply to any mode using custom keys
+- **Random Filenames**: Hide original file names
+- **Steganographic Modes**: Multiple hidden data techniques
+- **Visual Obfuscation**: Emoji shuffling, chess positions
+
+## 📁 Directory Structure
+
+```
+├── main.py              # Application entry point
+├── human_files/         # Original files (input)
+├── machine_files/       # Encoded files (output)
+├── chess_images/        # Chess viewer exports
+├── fonts/               # FiraCode font files
+├── src/                 # Source code modules
+└── requirements.txt     # Dependencies
+```
+
+## 📦 Requirements
 
 - Python 3.6+
-- Pillow 9.0.0+ (for image processing)
-- NumPy 1.21.0+ (for array operations)
-- Standard library modules (tkinter, os, io, sys, etc.)
+- Pillow (image processing)
+- qrcode (QR code generation)
+- pyzbar (barcode reading)
+- tkinter (GUI - included with Python)
 
-## License
+## 📖 Test Files
 
-The project is distributed under the MIT license. See the `LICENSE` file for details.
+The `human_files/` directory includes sample test files for trying different encoding modes:
 
-## Author
+- `simple_text.txt` - Basic text for all modes
+- `unicode_test.txt` - Multi-language and emoji content
+- `quick_test.txt` - Small file for fast testing
+- Mode-specific test files for optimal results
+- `README_TEST_FILES.md` - Detailed usage guide
 
-© 2025 - Developed by Eggpant203 🍆
+## 🎯 Performance Tips
+
+- **Small files** (<100KB): All settings work well
+- **Large files** (>1MB): Use optimized settings for MIDI mode
+- **MIDI playback**: Default ultra-fast settings reduce hours to minutes
+- **Search**: Use Ctrl+F to quickly find the right encoding mode
+
+## 📄 License
+
+MIT License - see `LICENSE` file for details.
+
+## 👤 Author
+
+© 2025 - Developed by Eggplant203 🍆
+
+---
+
+_For detailed technical documentation and advanced options, see the source code comments and mode-specific help tooltips in the application._

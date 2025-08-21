@@ -21,7 +21,7 @@ class ChunkProcessor:
         self.is_running = False
         self.exception = None
     
-    def encode_file(self, file_path, mode, str_encoding, use_key=False, key_text=""):
+    def encode_file(self, file_path, mode, str_encoding, use_key=False, key_text="", **kwargs):
         """
         Encode file in chunks and display progress.
         
@@ -30,6 +30,7 @@ class ChunkProcessor:
         :param str_encoding: String encoding
         :param use_key: Whether to use key or not
         :param key_text: Key for XOR encoding
+        :param kwargs: Additional options for specific modes (e.g., UUID options)
         :return: Encoded string
         """
         self.is_running = True
@@ -41,10 +42,17 @@ class ChunkProcessor:
         # Create progress handler if doesn't exist
         if not self.progress_handler:
             self.progress_handler = ProgressHandler("Encoding File", file_size)
-        
+            
+        # Special case for QR Code mode direct text input
+        if hasattr(mode, "__name__") and mode.__name__ == "qr_code_mode" and isinstance(file_path, str) and file_path.startswith("TEXT:"):
+            # Direct text input for QR code mode
+            text_content = file_path[5:]  # Remove TEXT: prefix
+            self._encode_qr_text_worker(text_content, mode, str_encoding, use_key, key_text)
+            return self.result
+            
         # Create thread for processing
         thread = threading.Thread(target=self._encode_worker, 
-                                 args=(file_path, mode, str_encoding, use_key, key_text))
+                                 args=(file_path, mode, str_encoding, use_key, key_text, kwargs))
         thread.daemon = True
         thread.start()
         
@@ -63,10 +71,64 @@ class ChunkProcessor:
         
         return self.result
     
-    def _encode_worker(self, file_path, mode, str_encoding, use_key, key_text):
+    def _encode_qr_text_worker(self, text_content, mode, str_encoding, use_key, key_text):
+        """
+        Worker thread for direct text encoding to QR code without creating a file first.
+        
+        :param text_content: The text to encode in the QR code
+        :param mode: The QR code mode module
+        :param str_encoding: String encoding
+        :param use_key: Whether to use key
+        :param key_text: Key for XOR encoding
+        """
+        try:
+            # Set initial progress
+            if self.progress_handler:
+                self.progress_handler.update_progress(0, 100)
+                self.progress_handler.update_additional_status("Creating QR code...")
+            
+            # Convert text to bytes if needed
+            if not isinstance(text_content, bytes):
+                text_bytes = text_content.encode(str_encoding)
+            else:
+                text_bytes = text_content
+                
+            # Apply XOR if needed
+            if use_key and key_text:
+                from src import key_cipher
+                if self.progress_handler:
+                    self.progress_handler.update_additional_status("Encrypting with key...")
+                text_bytes = key_cipher.apply_xor(text_bytes, key_text)
+                
+            # Update progress
+            if self.progress_handler:
+                self.progress_handler.update_progress(50, 100)
+                self.progress_handler.update_additional_status("Generating QR code...")
+                
+            # Encode directly using the mode (qr_code_mode)
+            import inspect
+            sig = inspect.signature(mode.encode)
+            if 'key' in sig.parameters and use_key and key_text:
+                self.result = mode.encode(text_bytes, encoding=str_encoding, key=key_text)
+            else:
+                self.result = mode.encode(text_bytes, encoding=str_encoding)
+            
+            # Complete the progress
+            if self.progress_handler:
+                self.progress_handler.complete(success=True)
+                
+        except Exception as e:
+            self.exception = e
+            if self.progress_handler:
+                self.progress_handler.complete(success=False, error_msg=str(e))
+    
+    def _encode_worker(self, file_path, mode, str_encoding, use_key, key_text, extra_options=None):
         """
         Worker thread to encode file.
         """
+        if extra_options is None:
+            extra_options = {}
+            
         try:
             # Get file info
             name, ext, file_size = util.get_file_info(file_path)
@@ -108,7 +170,31 @@ class ChunkProcessor:
             # Encode the entire data
             if self.progress_handler:
                 self.progress_handler.update_additional_status("Encoding data...")
-            self.result = mode.encode(full_data, encoding=str_encoding)
+                
+            # Check if the mode supports various parameters
+            import inspect
+            sig = inspect.signature(mode.encode)
+            
+            # Prepare encoding parameters
+            encode_params = {
+                'data': full_data,
+                'encoding': str_encoding
+            }
+            
+            # Add key parameter if supported and provided
+            if 'key' in sig.parameters and use_key and key_text:
+                encode_params['key'] = key_text
+            
+            # Add extra options if supported (for UUID mode and others)
+            for param_name, param_value in extra_options.items():
+                if param_name in sig.parameters:
+                    encode_params[param_name] = param_value
+            
+            # Remove data parameter name and pass as first positional argument
+            data_to_encode = encode_params.pop('data')
+            
+            # Call encode function with appropriate parameters
+            self.result = mode.encode(data_to_encode, **encode_params)
             
             # Complete the progress
             if self.progress_handler:
@@ -120,13 +206,14 @@ class ChunkProcessor:
                 # Mark as error and close progress bar
                 self.progress_handler.complete(success=False, error_msg=str(e))
     
-    def decode_file(self, file_path, mode, key_text=""):
+    def decode_file(self, file_path, mode, key_text="", **kwargs):
         """
         Decode file in chunks and display progress.
         
         :param file_path: Path to file to decode
         :param mode: Decoding module (base64, base32, ...)
         :param key_text: Key for XOR decoding
+        :param kwargs: Additional options for specific modes (e.g., Emoji shuffle key)
         :return: Tuple (meta, raw_data)
         """
         self.is_running = True
@@ -141,7 +228,7 @@ class ChunkProcessor:
         
         # Create thread for processing
         thread = threading.Thread(target=self._decode_worker, 
-                                 args=(file_path, mode, key_text))
+                                 args=(file_path, mode, key_text, kwargs))
         thread.daemon = True
         thread.start()
         
@@ -160,31 +247,69 @@ class ChunkProcessor:
         
         return self.result
     
-    def _decode_worker(self, file_path, mode, key_text):
+    def _decode_worker(self, file_path, mode, key_text, kwargs=None):
         """
         Worker thread to decode file.
         """
+        if kwargs is None:
+            kwargs = {}
+            
         try:
             # Get file size
             file_size = os.path.getsize(file_path)
             processed_size = 0
             
-            # Check if we're using image mode
+            # Check if we're using image mode or QR code mode or sound mode
             is_image_mode = False
-            # Check if the module is image_mode
-            if hasattr(mode, '__name__'):
-                is_image_mode = mode.__name__ == 'image_mode'
-            # Check module object itself 
-            elif hasattr(mode, 'image_mode'):
-                is_image_mode = True
-            # Check file extension as a fallback
-            elif file_path.lower().endswith('.png'):
-                is_image_mode = True
-                # If we detected via file extension, make sure we're using the image_mode module
-                from src import image_mode
-                mode = image_mode
+            is_qr_code_mode = False
+            is_sound_mode = False
             
-            if is_image_mode:
+            # Import necessary modules
+            from src import image_mode, qr_code_mode, sound_mode
+            
+            # Check if module is directly image_mode, qr_code_mode, or sound_mode
+            if mode == image_mode:
+                is_image_mode = True
+            elif mode == qr_code_mode:
+                is_qr_code_mode = True
+            elif mode == sound_mode:
+                is_sound_mode = True
+            # Check if the module has a __name__ attribute
+            elif hasattr(mode, '__name__'):
+                if mode.__name__ == 'image_mode':
+                    is_image_mode = True
+                elif mode.__name__ == 'qr_code_mode':
+                    is_qr_code_mode = True
+                elif mode.__name__ == 'sound_mode':
+                    is_sound_mode = True
+            
+            # For QR Code mode, we need to handle PNG files differently
+            if is_qr_code_mode and file_path.lower().endswith('.png'):
+                # This is a PNG file being decoded as QR code
+                # Read the PNG file and create QR_CODE format for qr_code_mode.decode()
+                with open(file_path, "rb") as f:
+                    png_data = f.read()
+                    processed_size = len(png_data)
+                    if self.progress_handler:
+                        self.progress_handler.update_progress(processed_size, file_size)
+                
+                # Create the special QR_CODE format that qr_code_mode.decode expects
+                data_str = f"QR_CODE:{len(png_data)}:{png_data.hex()}"
+                
+            elif is_sound_mode and file_path.lower().endswith(('.mid', '.midi')):
+                # This is a MIDI file being decoded as sound
+                # Read binary MIDI data
+                with open(file_path, "rb") as f:
+                    midi_data = f.read()
+                    processed_size = len(midi_data)
+                    if self.progress_handler:
+                        self.progress_handler.update_progress(processed_size, file_size)
+                
+                # For sound mode, we pass the raw MIDI data directly
+                data_str = midi_data
+                
+            elif is_image_mode and file_path.lower().endswith('.png'):
+                # This is a PNG file being decoded as image
                 # Read binary data for image files
                 with open(file_path, "rb") as f:
                     img_data = f.read()
@@ -194,6 +319,59 @@ class ChunkProcessor:
                 
                 # Create the IMG_DATA format that image_mode.decode expects
                 data_str = f"IMG_DATA:{len(img_data)}:{img_data.hex()}"
+                
+            elif file_path.lower().endswith('.png'):
+                # PNG file but mode not specified - try to auto-detect
+                try:
+                    # First, try to decode as QR code
+                    from pyzbar import pyzbar
+                    from PIL import Image
+                    img = Image.open(file_path)
+                    decoded_objects = pyzbar.decode(img)
+                    
+                    if decoded_objects:
+                        # This appears to be a QR code - create QR_CODE format
+                        is_qr_code_mode = True
+                        mode = qr_code_mode
+                        
+                        # Read the PNG file and create QR_CODE format for qr_code_mode.decode()
+                        with open(file_path, "rb") as f:
+                            png_data = f.read()
+                            processed_size = len(png_data)
+                            if self.progress_handler:
+                                self.progress_handler.update_progress(processed_size, file_size)
+                        
+                        # Create the special QR_CODE format that qr_code_mode.decode expects
+                        data_str = f"QR_CODE:{len(png_data)}:{png_data.hex()}"
+                    else:
+                        # Not a QR code, treat as regular image
+                        is_image_mode = True
+                        mode = image_mode
+                        
+                        # Read binary data for image files
+                        with open(file_path, "rb") as f:
+                            img_data = f.read()
+                            processed_size = len(img_data)
+                            if self.progress_handler:
+                                self.progress_handler.update_progress(processed_size, file_size)
+                        
+                        # Create the IMG_DATA format that image_mode.decode expects
+                        data_str = f"IMG_DATA:{len(img_data)}:{img_data.hex()}"
+                except Exception as ex:
+                    print(f"Error detecting QR code: {ex}")
+                    # If any error occurs, default to image mode
+                    is_image_mode = True
+                    mode = image_mode
+                    
+                    # Read binary data for image files
+                    with open(file_path, "rb") as f:
+                        img_data = f.read()
+                        processed_size = len(img_data)
+                        if self.progress_handler:
+                            self.progress_handler.update_progress(processed_size, file_size)
+                    
+                    # Create the IMG_DATA format that image_mode.decode expects
+                    data_str = f"IMG_DATA:{len(img_data)}:{img_data.hex()}"
             else:
                 # For text files, read as UTF-8
                 try:
@@ -202,6 +380,8 @@ class ChunkProcessor:
                         while chunk := f.read(self.chunk_size):
                             data_str += chunk
                             processed_size += len(chunk.encode('utf-8'))  # Calculate actual size
+                            if self.progress_handler:
+                                self.progress_handler.update_progress(processed_size, file_size)
                 except UnicodeDecodeError:
                     # If we encounter UTF-8 decode error, it might be a binary file or different encoding
                     # Try to read it as binary and convert to hex string for safety
@@ -221,19 +401,32 @@ class ChunkProcessor:
                             # Otherwise, just treat as a generic binary file
                             data_str = binary_data.hex()
                             raise ValueError("Could not decode file as UTF-8 text. File may be binary or corrupted.")
-                        if self.progress_handler:
-                            self.progress_handler.update_progress(processed_size, file_size)
             
             # Notify start of decoding
             if self.progress_handler:
                 self.progress_handler.update_additional_status("Decoding data...")
                 
-            # Notify processing status
-            if self.progress_handler:
-                self.progress_handler.update_additional_status("Decoding data...")
-            
             # Decode data
-            decoded = mode.decode(data_str, encoding="utf-8")
+            import inspect
+            sig = inspect.signature(mode.decode)
+            
+            # Prepare decode arguments
+            decode_args = {"encoding": "utf-8"}
+            
+            # Add key if supported and provided
+            if 'key' in sig.parameters and key_text:
+                decode_args['key'] = key_text
+                
+            # Add mode-specific options (kwargs)
+            for key, value in kwargs.items():
+                if key in sig.parameters:
+                    decode_args[key] = value
+            
+            # For Sound mode, data_str is bytes, for other modes it's a string
+            if is_sound_mode and isinstance(data_str, bytes):
+                decoded = mode.decode(data_str, **decode_args)
+            else:
+                decoded = mode.decode(data_str, **decode_args)
             
             # Apply XOR if key is provided
             if key_text:
@@ -246,20 +439,28 @@ class ChunkProcessor:
             if self.progress_handler:
                 self.progress_handler.update_additional_status("Processing results...")
             
-            # Create metadata and raw data directly for image mode
-            is_image_mode = False
-            if hasattr(mode, '__name__'):
-                is_image_mode = mode.__name__ == 'image_mode'
-            elif hasattr(mode, 'image_mode'):
-                is_image_mode = True
+            # Check if this is QR code mode for special handling
+            # Image mode now handles metadata normally, so only QR code needs special handling
+            is_special_mode = is_qr_code_mode
             
-            if is_image_mode:
-                # For image mode, we create the metadata format ourselves
-                # since the image encoding doesn't preserve the header format
+            if is_special_mode:
+                # For QR code mode, we create the metadata format ourselves
+                # since QR code mode doesn't preserve the header format
                 name, ext, _ = util.get_file_info(file_path)
-                # Create a fake metadata line similar to what other modes produce
-                metadata = f"{name}{ext}|{len(decoded)}|binary".encode('utf-8')
-                self.result = (metadata, decoded)
+                
+                if is_qr_code_mode:
+                    # For QR code, the decoded data is just text - no metadata was included
+                    if isinstance(decoded, bytes):
+                        # Convert to string for display
+                        decoded_text = decoded.decode('utf-8', errors='replace')
+                    else:
+                        decoded_text = str(decoded)
+                    
+                    # Create a metadata format for displaying purposes only
+                    # This won't affect the QR content itself
+                    metadata = f"qr_text.txt|{len(decoded_text.encode('utf-8'))}|utf-8".encode('utf-8')
+                    raw_data = decoded if isinstance(decoded, bytes) else decoded_text.encode('utf-8')
+                    self.result = (metadata, raw_data)
                 
                 # Skip the normal metadata splitting process
                 if self.progress_handler:
@@ -273,7 +474,7 @@ class ChunkProcessor:
                 # Find the separator between metadata and data
                 parts = decoded.split(b"\n", 1)
                 if len(parts) != 2:
-                    raise ValueError("Invalid file format!")
+                    raise ValueError("Invalid file format - missing metadata separator!")
             
             meta, raw = parts
             self.result = (meta, raw)

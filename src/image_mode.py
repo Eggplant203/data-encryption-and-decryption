@@ -9,17 +9,18 @@ import math
 Image.MAX_IMAGE_PIXELS = None  # Disable the maximum pixel limit check
 ImageFile.LOAD_TRUNCATED_IMAGES = True  # Allow loading of truncated image data
 
-def encode(data: bytes, encoding: str = "utf-8") -> str:
+def encode(data: bytes, encoding: str = "utf-8", **kwargs) -> str:
     """
     Encode binary data into an image and return as a special format string.
     The image can be saved separately.
     
-    :param data: Binary data to encode
+    :param data: Binary data to encode (includes metadata + file content)
     :param encoding: String encoding (used only for metadata storage, not for pixel data)
+    :param **kwargs: Additional options (compression)
     :return: A special format string containing image data
     
-    Note: The image encoding doesn't preserve the normal metadata header format.
-    The metadata will be reconstructed during the decoding process.
+    Note: The image encoding preserves metadata including filename and encoding.
+    The metadata will be extracted during the decoding process.
     """
     # Convert data to numpy array of bytes
     byte_array = np.frombuffer(data, dtype=np.uint8)
@@ -42,7 +43,7 @@ def encode(data: bytes, encoding: str = "utf-8") -> str:
     # First 4 bytes store the original data length (as 4 individual bytes)
     length_bytes = num_bytes.to_bytes(4, byteorder='big')
     
-    # Combine metadata and actual data
+    # Combine metadata and actual data - data already includes metadata
     full_data = length_bytes + data
     
     # Fill the image with data
@@ -67,9 +68,12 @@ def encode(data: bytes, encoding: str = "utf-8") -> str:
     # Create PIL Image from numpy array
     img = Image.fromarray(img_array)
     
+    # Get compression level from kwargs
+    compression = kwargs.get('compression', 6)
+    
     # Save to BytesIO and convert to base64
     buffer = io.BytesIO()
-    img.save(buffer, format='PNG')
+    img.save(buffer, format='PNG', compress_level=compression)
     img_data = buffer.getvalue()
     
     # Return special format string that indicates this is image data
@@ -81,7 +85,7 @@ def decode(text: str, encoding: str = "utf-8") -> bytes:
     
     :param text: Special format string containing image data
     :param encoding: String encoding (not used for actual decoding, kept for API consistency)
-    :return: The original binary data
+    :return: The original binary data (includes metadata + file content)
     """
     # Check if the text starts with our special prefix
     if not text.startswith("IMG_DATA:"):
@@ -120,7 +124,7 @@ def decode(text: str, encoding: str = "utf-8") -> bytes:
     # First 4 bytes are metadata (original length)
     original_length = int.from_bytes(all_bytes[:4], byteorder='big')
     
-    # Return only the original data part
+    # Return the original data part (includes metadata + file content)
     return all_bytes[4:4 + original_length]
 
 def save_image(text: str, output_path: str) -> bool:
@@ -144,3 +148,20 @@ def save_image(text: str, output_path: str) -> bool:
         f.write(img_data)
     
     return True
+
+def get_options():
+    """
+    Return available options for Image encoding.
+    
+    Returns:
+        Dictionary of options with their descriptions and default values
+    """
+    return {
+        "compression": {
+            "description": "PNG compression level (0-9)",
+            "type": "int",
+            "default": 6,
+            "min": 0,
+            "max": 9
+        }
+    }

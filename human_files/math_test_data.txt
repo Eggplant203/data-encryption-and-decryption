@@ -1,0 +1,22 @@
+Mathematical Test Data
+======================
+
+Prime numbers: 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47
+
+Fibonacci sequence: 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377
+
+Pi digits: 3.14159265358979323846264338327950288419716939937510
+
+Golden ratio: 1.6180339887498948482045868343656381177203091798057628
+
+Binary: 1101001010110101
+Octal: 1234567
+Hexadecimal: ABCDEF123456
+
+Mathematical expressions:
+- E = mc²
+- a² + b² = c²
+- ∑(n=1 to ∞) 1/n² = π²/6
+- f(x) = ax² + bx + c
+
+This file contains various numerical and mathematical content perfect for testing encoding modes that work well with structured data.

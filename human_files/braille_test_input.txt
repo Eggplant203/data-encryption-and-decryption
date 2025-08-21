@@ -1,0 +1,24 @@
+Braille Mode Test File
+=====================
+
+This file is designed to test the Braille encoding mode.
+
+Short text: Hello
+Medium text: This is a test for Braille encoding mode.
+Long text: The Braille system is a tactile writing system used by people who are visually impaired. It was developed by Louis Braille in the 1820s and consists of patterns of raised dots arranged in cells of up to six dots each.
+
+Numbers: 0123456789
+Alphabet: ABCDEFGHIJKLMNOPQRSTUVWXYZ
+lowercase: abcdefghijklmnopqrstuvwxyz
+
+Common phrases:
+- Good morning
+- Thank you
+- How are you?
+- See you later
+- Have a nice day
+
+Special characters that should work well with Braille:
+. , ; : ! ? ' " - ( )
+
+This text should convert nicely to Braille patterns for testing the visual output of the Braille encoding mode.

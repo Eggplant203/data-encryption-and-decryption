@@ -1,0 +1,17 @@
+Unicode Test File 🚀
+═══════════════════════
+
+English: Hello World!
+Tiếng Việt: Xin chào thế giới! 🇻🇳
+中文: 你好世界! 🇨🇳
+日本語: こんにちは世界! 🇯🇵
+한국어: 안녕하세요 세계! 🇰🇷
+Français: Salut le monde! 🇫🇷
+Español: ¡Hola mundo! 🇪🇸
+العربية: مرحبا بالعالم! 🇸🇦
+
+Special Characters: ★ ♥ ♦ ♣ ♠ ♪ ♫ ♯ ♭
+Math Symbols: ∑ ∏ ∞ ≈ ≠ ≤ ≥ √ ∆ π
+Arrows: ← → ↑ ↓ ↔ ↕ ⇒ ⇔
+
+This file tests Unicode handling in encryption modes.

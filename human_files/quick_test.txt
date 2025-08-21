@@ -1,0 +1,6 @@
+Quick Test
+
+This is a small file for quick testing of all encoding modes.
+Perfect for fast verification of functionality.
+
+Data: ABC123

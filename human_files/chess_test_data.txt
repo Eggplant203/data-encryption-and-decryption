@@ -1,0 +1,28 @@
+Chess Mode Test Data
+===================
+
+This file contains test data specifically for Chess encoding mode:
+
+Game opening: King's Pawn Opening
+First moves: 1.e4 e5 2.Nf3 Nc6 3.Bb5
+
+Short notation test: Qh5+ Kf8 Qxf7#
+Long notation test: Queen to h5 check, King to f8, Queen takes f7 checkmate
+
+Sample chess game (Fool's Mate):
+1. f3 e5
+2. g4 Qh4#
+
+Another famous game (Scholar's Mate):
+1. e4 e5
+2. Bc4 Nc6  
+3. Qh5 Nf6??
+4. Qxf7#
+
+Piece notation:
+K = King, Q = Queen, R = Rook, B = Bishop, N = Knight, (no symbol) = Pawn
++ = Check, # = Checkmate, 0-0 = Kingside castle, 0-0-0 = Queenside castle
+
+Test message: "Chess is a game of strategy and tactics."
+
+This data should work well with the Chess encoding mode, providing various types of chess-related content and general text.

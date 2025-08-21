@@ -1,0 +1,37 @@
+Emoji Mode Test Content
+=======================
+
+This file tests the Emoji encoding mode with various types of text:
+
+Basic text: Hello world
+Numbers: 12345
+Mixed: Hello123World
+
+Sentences:
+- The quick brown fox jumps over the lazy dog.
+- Pack my box with five dozen liquor jugs.
+- How vexingly quick daft zebras jump!
+
+Programming text:
+function hello() {
+    console.log("Hello, world!");
+    return true;
+}
+
+Special characters: !@#$%^&*()_+-=[]{}|;:,.<>?
+
+ASCII art:
+  /\_/\  
+ ( o.o ) 
+  > ^ <
+
+Different lengths for testing:
+Short: Hi
+Medium: This is a medium test message.
+Long: This is a much longer test message that should demonstrate how the emoji encoding mode handles larger amounts of text data and converts it into emoji representations.
+
+Binary-like: 010101110000
+Hex-like: DEADBEEF
+Base64-like: SGVsbG8gV29ybGQ=
+
+This file provides diverse content for comprehensive emoji encoding testing.

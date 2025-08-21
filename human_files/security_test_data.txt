@@ -1,0 +1,37 @@
+Security Test Data
+==================
+
+This file contains sensitive-looking data for testing encryption with keys:
+
+Fake passwords (for testing only):
+- password123
+- admin@2023
+- MySecretKey!
+- TestPass456
+
+Fake API keys (for testing):
+- sk_test_1234567890abcdef
+- api_key_xyz789012345
+- token_abc123def456ghi
+
+Fake personal data:
+Name: John Doe
+Phone: +1-555-0123  
+Email: test@example.com
+ID: 123-45-6789
+
+Fake financial data:
+Account: 1234-5678-9012-3456
+Amount: $1,234.56
+Transaction: TXN_ABC123
+
+Fake server info:
+Server: 192.168.1.100
+Port: 8080
+Database: test_db
+User: admin
+
+⚠️  NOTICE: All data in this file is fake and for testing purposes only.
+Do not use any of this information in real systems.
+
+This file is perfect for testing encryption modes with key-based security.

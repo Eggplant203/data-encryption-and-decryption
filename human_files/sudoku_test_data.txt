@@ -1,0 +1,20 @@
+Sudoku Test Data
+================
+
+This file contains various types of data perfect for testing Sudoku encoding:
+
+Numbers: 123456789
+Letters: ABCDEFGHIJKLMNOPQRSTUVWXYZ
+Mixed: ABC123xyz789
+
+Short message: Test
+Medium message: This is a medium length test message for Sudoku encoding.
+Long message: This is a longer test message that will require multiple Sudoku grids to encode completely. It includes various characters and should demonstrate the Sudoku mode's ability to handle larger amounts of data efficiently.
+
+Special characters: !@#$%^&*()
+Unicode symbols: ★♥♦♣♠♪♫
+
+Binary-like data: 01010101110000111100001111
+Hex-like data: DEADBEEF1234567890ABCDEF
+
+This file is designed to test the Sudoku encoding mode with different types and lengths of input data.

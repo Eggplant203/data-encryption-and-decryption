@@ -2,6 +2,13 @@
 pillow>=9.0.0  # For image manipulation and processing
 numpy>=1.21.0  # For efficient array operations
 
+# QR Code generation and scanning
+qrcode>=7.3.1  # For QR code generation
+pyzbar>=0.1.8  # For QR code scanning
+
+# Barcode generation
+python-barcode[images]>=0.14.0  # For barcode generation with image support
+
 # GUI toolkit (included in Python standard library, listed for clarity)
 # tkinter
 
@@ -13,3 +20,4 @@ numpy>=1.21.0  # For efficient array operations
 # string
 # subprocess
 # threading
+# tempfile

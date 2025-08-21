@@ -1,0 +1,43 @@
+{
+  "project": "Data Encryption and Decryption",
+  "version": "1.0.0",
+  "modes": [
+    {
+      "name": "Base64",
+      "description": "Standard base64 encoding",
+      "type": "text"
+    },
+    {
+      "name": "QR Code",
+      "description": "2D barcode encoding",
+      "type": "image"
+    },
+    {
+      "name": "Barcode",
+      "description": "1D barcode encoding",
+      "type": "image",
+      "options": {
+        "module_width": 0.2,
+        "module_height": 15.0,
+        "quiet_zone": 6.5,
+        "font_size": 43
+      }
+    },
+    {
+      "name": "Sudoku",
+      "description": "Puzzle-based encoding",
+      "type": "text"
+    }
+  ],
+  "test_data": {
+    "simple": "Hello World",
+    "numbers": "1234567890",
+    "special": "!@#$%^&*()_+-={}[]|\\:;\"'<>,.?/",
+    "unicode": "Tiếng Việt 🚀"
+  },
+  "metadata": {
+    "created": "2025-08-21",
+    "author": "Test User",
+    "purpose": "Testing JSON encoding modes"
+  }
+}

@@ -1,0 +1,10 @@
+Hello World!
+This is a simple text file for testing basic encoding modes like:
+- Base64
+- Base32
+- Base85
+- Binary
+- Hex
+- Zero Width
+
+You can use this file to test encryption and decryption with different modes.
