@@ -193,6 +193,7 @@ def get_options():
             "type": "str",
             "default": "",
             "required": False,
+            "decode_required": True,
             "example": "rainbow, animals, faces, secret123, mypattern",
             "note": "DIFFERENT from 'Use Key' (XOR encryption)! Shuffle Key reorders emojis in result. Example: 😵😪😪 → 😪😵😪. Leave empty = keep original order."
         }
