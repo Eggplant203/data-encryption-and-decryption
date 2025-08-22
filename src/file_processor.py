@@ -259,21 +259,24 @@ class ChunkProcessor:
             file_size = os.path.getsize(file_path)
             processed_size = 0
             
-            # Check if we're using image mode or QR code mode or sound mode
+            # Check if we're using image mode or QR code mode or sound mode or barcode mode
             is_image_mode = False
             is_qr_code_mode = False
             is_sound_mode = False
+            is_barcode_mode = False
             
             # Import necessary modules
-            from src import image_mode, qr_code_mode, sound_mode
+            from src import image_mode, qr_code_mode, sound_mode, barcode_mode
             
-            # Check if module is directly image_mode, qr_code_mode, or sound_mode
+            # Check if module is directly image_mode, qr_code_mode, sound_mode, or barcode_mode
             if mode == image_mode:
                 is_image_mode = True
             elif mode == qr_code_mode:
                 is_qr_code_mode = True
             elif mode == sound_mode:
                 is_sound_mode = True
+            elif mode == barcode_mode:
+                is_barcode_mode = True
             # Check if the module has a __name__ attribute
             elif hasattr(mode, '__name__'):
                 if mode.__name__ == 'image_mode':
@@ -282,6 +285,8 @@ class ChunkProcessor:
                     is_qr_code_mode = True
                 elif mode.__name__ == 'sound_mode':
                     is_sound_mode = True
+                elif mode.__name__ == 'barcode_mode':
+                    is_barcode_mode = True
             
             # For QR Code mode, we need to handle PNG files differently
             if is_qr_code_mode and file_path.lower().endswith('.png'):
@@ -307,6 +312,18 @@ class ChunkProcessor:
                 
                 # For sound mode, we pass the raw MIDI data directly
                 data_str = midi_data
+                
+            elif is_barcode_mode and file_path.lower().endswith('.png'):
+                # This is a PNG file being decoded as barcode
+                # Read binary data for barcode PNG files
+                with open(file_path, "rb") as f:
+                    png_data = f.read()
+                    processed_size = len(png_data)
+                    if self.progress_handler:
+                        self.progress_handler.update_progress(processed_size, file_size)
+                
+                # Create the special BARCODE format that barcode_mode.decode expects
+                data_str = f"BARCODE:{len(png_data)}:{png_data.hex()}"
                 
             elif is_image_mode and file_path.lower().endswith('.png'):
                 # This is a PNG file being decoded as image
@@ -439,13 +456,13 @@ class ChunkProcessor:
             if self.progress_handler:
                 self.progress_handler.update_additional_status("Processing results...")
             
-            # Check if this is QR code mode for special handling
-            # Image mode now handles metadata normally, so only QR code needs special handling
-            is_special_mode = is_qr_code_mode
+            # Check if this is QR code mode or Barcode mode for special handling
+            # Image mode now handles metadata normally, so only QR code and Barcode need special handling
+            is_special_mode = is_qr_code_mode or is_barcode_mode
             
             if is_special_mode:
-                # For QR code mode, we create the metadata format ourselves
-                # since QR code mode doesn't preserve the header format
+                # For QR code and Barcode mode, we create the metadata format ourselves
+                # since these modes don't preserve the header format
                 name, ext, _ = util.get_file_info(file_path)
                 
                 if is_qr_code_mode:
@@ -459,6 +476,19 @@ class ChunkProcessor:
                     # Create a metadata format for displaying purposes only
                     # This won't affect the QR content itself
                     metadata = f"qr_text.txt|{len(decoded_text.encode('utf-8'))}|utf-8".encode('utf-8')
+                    raw_data = decoded if isinstance(decoded, bytes) else decoded_text.encode('utf-8')
+                    self.result = (metadata, raw_data)
+                elif is_barcode_mode:
+                    # For Barcode, the decoded data is just text - no metadata was included
+                    if isinstance(decoded, bytes):
+                        # Convert to string for display
+                        decoded_text = decoded.decode('utf-8', errors='replace')
+                    else:
+                        decoded_text = str(decoded)
+                    
+                    # Create a metadata format for displaying purposes only
+                    # This won't affect the Barcode content itself
+                    metadata = f"barcode_text.txt|{len(decoded_text.encode('utf-8'))}|utf-8".encode('utf-8')
                     raw_data = decoded if isinstance(decoded, bytes) else decoded_text.encode('utf-8')
                     self.result = (metadata, raw_data)
                 
@@ -488,3 +518,43 @@ class ChunkProcessor:
             if self.progress_handler:
                 # Mark as error and close progress bar
                 self.progress_handler.complete(success=False, error_msg=str(e))
+
+    def decode_barcode_png(self, png_file_path):
+        """
+        Decode PNG barcode file directly without threading to avoid GUI issues.
+        
+        :param png_file_path: Path to PNG barcode file
+        :return: Decoded text content
+        """
+        try:
+            # Update progress if handler exists
+            if self.progress_handler:
+                self.progress_handler.update_progress(25, 100)
+                self.progress_handler.update_additional_status("Reading PNG file...")
+            
+            # Read PNG file
+            with open(png_file_path, 'rb') as f:
+                png_data = f.read()
+                
+            # Update progress
+            if self.progress_handler:
+                self.progress_handler.update_progress(75, 100)
+                self.progress_handler.update_additional_status("Decoding barcode data...")
+            
+            # Create barcode format string
+            barcode_format = f"BARCODE:{len(png_data)}:{png_data.hex()}"
+            
+            # Import barcode mode and decode
+            from src import barcode_mode
+            decoded_bytes = barcode_mode.decode(barcode_format)
+            
+            # Update progress to completion
+            if self.progress_handler:
+                self.progress_handler.update_progress(100, 100)
+                self.progress_handler.update_additional_status("Barcode decoded successfully!")
+            
+            # Return as string
+            return decoded_bytes.decode('utf-8')
+            
+        except Exception as e:
+            raise ValueError(f"Failed to decode barcode PNG: {str(e)}")

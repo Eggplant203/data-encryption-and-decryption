@@ -516,7 +516,7 @@ class ProgressHandler:
         # Update the window to ensure changes are visible
         self.window.update()
         
-    def complete(self, success=True, error_msg=None, output_file=None, qr_content=None):
+    def complete(self, success=True, error_msg=None, output_file=None, qr_content=None, barcode_content=None):
         """
         Mark the processing as completed
         
@@ -524,6 +524,7 @@ class ProgressHandler:
         :param error_msg: Error message (if any)
         :param output_file: Path to the output file (if any)
         :param qr_content: QR code content for special QR display
+        :param barcode_content: Barcode content for special Barcode display
         """
         self.output_file = output_file
         
@@ -565,6 +566,27 @@ class ProgressHandler:
                         text=content_text,
                         font=("Arial", 10, "bold"),
                         fg="blue",
+                        wraplength=430,
+                        justify="left",
+                        anchor="w"
+                    )
+                    content_label.pack(fill="x", anchor="w")
+                    
+                elif barcode_content is not None:
+                    # Special handling for Barcode content
+                    self.info_label.config(text="Barcode decoded successfully!")
+                    
+                    # Create a new frame for the Barcode content
+                    content_info_frame = tk.Frame(self.window)
+                    content_info_frame.pack(pady=(5,0), padx=10, fill="both", expand=True)
+                    
+                    # Display Barcode content instead of file path
+                    content_text = f"Content: {barcode_content}"
+                    content_label = tk.Label(
+                        content_info_frame, 
+                        text=content_text,
+                        font=("Arial", 10, "bold"),
+                        fg="green",  # Different color for barcode
                         wraplength=430,
                         justify="left",
                         anchor="w"
@@ -618,14 +640,15 @@ class ProgressHandler:
             finish()
     
     @staticmethod
-    def show_success(title: str, filepath_or_content: str, is_qr_content=False):
+    def show_success(title: str, filepath_or_content: str, is_qr_content=False, is_barcode_content=False):
         """
         Display success notification window with formatted filename and path
-        shown clearly, or QR content for QR mode.
+        shown clearly, or QR/Barcode content for QR/Barcode mode.
         
         :param title: Window title
-        :param filepath_or_content: Path to the result file or QR content
+        :param filepath_or_content: Path to the result file or QR/Barcode content
         :param is_qr_content: True if this is QR content, False if file path
+        :param is_barcode_content: True if this is Barcode content, False if file path
         """
         dialog = tk.Toplevel()
         dialog.title(title)
@@ -665,6 +688,21 @@ class ProgressHandler:
                 anchor="w"
             )
             content_label.pack(fill="x", anchor="w")
+        elif is_barcode_content:
+            # Display Barcode content instead of file path
+            content_text = f"Content: {filepath_or_content}"
+            content_label = tk.Label(
+                info_frame, 
+                text=content_text,
+                font=("Arial", 10, "bold"),
+                fg="green",  # Different color for barcode
+                wraplength=480,
+                justify="left",
+                anchor="w"
+            )
+            content_label.pack(fill="x", anchor="w")
+        
+        if is_qr_content or is_barcode_content:
             
             def close_dialog():
                 dialog.destroy()

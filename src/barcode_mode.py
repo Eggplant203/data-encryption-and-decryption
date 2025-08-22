@@ -13,6 +13,177 @@ try:
 except ImportError:
     pass
 
+def get_barcode_example_text(barcode_type: str) -> str:
+    """
+    Get appropriate example text for each barcode type.
+    
+    :param barcode_type: Type of barcode
+    :return: Example text suitable for that barcode type
+    """
+    # Handle invalid input
+    if not isinstance(barcode_type, str):
+        barcode_type = str(barcode_type)
+    
+    barcode_type = barcode_type.lower()
+    
+    examples = {
+        'code128': 'Hello World!',      # Can handle mixed text
+        'code39': 'HELLO123',           # Uppercase + numbers
+        'ean8': '1234567',              # 7 digits only
+        'ean13': '123456789012',        # 12 digits only  
+        'upc_a': '12345678901',         # 11 digits only
+        'isbn': '9781234567897',        # 13 digits starting with 978/979
+        'issn': '12345678',             # 8 digits with dash: 1234-5678
+        'pzn': '123456'                 # 6-7 digits
+    }
+    
+    return examples.get(barcode_type, 'Hello World!')  # Default fallback
+
+def get_barcode_tooltip_text(barcode_type: str) -> str:
+    """
+    Get detailed tooltip text explaining what strings this barcode type can handle.
+    
+    :param barcode_type: Type of barcode
+    :return: Tooltip text with detailed description
+    """
+    # Handle invalid input
+    if not isinstance(barcode_type, str):
+        barcode_type = str(barcode_type)
+        
+    barcode_type = barcode_type.lower()
+    
+    tooltips = {
+        'code128': 'CODE128 - Most flexible\n• Supports: All ASCII characters (letters, numbers, symbols)\n• Examples: "Hello World!", "ABC-123", "2024/08/22"\n• Cannot use: Unicode characters (Vietnamese, emojis)',
+        
+        'code39': 'CODE39 - Limited character set\n• Supports: A-Z (uppercase only), 0-9, space\n• Special chars: - . $ / + % *\n• Examples: "HELLO123", "ABC-456", "TEST$123"\n• Cannot use: lowercase letters, other symbols',
+        
+        'ean8': 'EAN-8 - Product barcode (8 digits)\n• Supports: Exactly 7 numbers (8th is auto-calculated)\n• Examples: "1234567", "9876543"\n• Cannot use: Letters, symbols, wrong length',
+        
+        'ean13': 'EAN-13 - International product barcode\n• Supports: Exactly 12 numbers (13th is auto-calculated)\n• Examples: "123456789012", "978123456789"\n• Cannot use: Letters, symbols, wrong length',
+        
+        'upca': 'UPC-A - North American product barcode\n• Supports: Exactly 11 numbers (12th is auto-calculated)\n• Examples: "01234567890", "12345678901"\n• Cannot use: Letters, symbols, wrong length',
+        
+        'isbn10': 'ISBN-10 - Book identifier (old format)\n• Supports: 9 digits + 1 check digit (can be X)\n• Examples: "0123456789", "012345678X"\n• Format: First 9 must be digits, last can be digit or X',
+        
+        'isbn13': 'ISBN-13 - Book identifier (new format)\n• Supports: Exactly 13 digits (usually starts with 978/979)\n• Examples: "9780123456789", "9791234567890"\n• Cannot use: Letters, symbols, wrong length',
+        
+        'issn': 'ISSN - Serial publication identifier\n• Supports: 7 digits + 1 check digit (can be X)\n• Examples: "12345678", "1234567X", "1234-5678"\n• Format: XXXXXXXX or XXXX-XXXX',
+        
+        'pzn': 'PZN - German pharmaceutical code\n• Supports: 6 or 7 digits only\n• Examples: "123456" (6 digits), "1234567" (7 digits)\n• Cannot use: Letters, symbols, other lengths'
+    }
+    
+    return tooltips.get(barcode_type, 'Unknown barcode type')
+
+def validate_barcode_data(data: str, barcode_type: str) -> tuple[bool, str]:
+    """
+    Validate if data is compatible with the specified barcode type.
+    
+    :param data: Text content to validate
+    :param barcode_type: Type of barcode to validate against
+    :return: Tuple of (is_valid, error_message)
+    """
+    barcode_type = barcode_type.lower()
+    
+    if barcode_type == 'code128':
+        # Code128 accepts almost any ASCII characters
+        try:
+            data.encode('ascii')
+            return True, ""
+        except UnicodeEncodeError:
+            return False, "Code128 only supports ASCII characters.\nValid examples: 'Hello123', 'ABC-456', '2024/08/22'"
+    
+    elif barcode_type == 'code39':
+        # Code39 accepts: A-Z, 0-9, space, and special chars: - . $ / + % *
+        valid_chars = set('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -.$/+%*')
+        data_upper = data.upper()
+        invalid_chars = set(data_upper) - valid_chars
+        if invalid_chars:
+            return False, f"Code39 only supports: A-Z, 0-9, space and special characters: - . $ / + % *\nInvalid characters: {', '.join(invalid_chars)}\nValid examples: 'HELLO123', 'ABC-456', 'TEST$123'"
+        return True, ""
+    
+    elif barcode_type in ['ean8']:
+        # EAN-8 requires exactly 7 digits (8th is check digit)
+        clean_data = data.replace('-', '').replace(' ', '')
+        if not clean_data.isdigit():
+            non_digit_chars = [c for c in clean_data if not c.isdigit()]
+            return False, f"EAN-8 only accepts numbers.\nInvalid characters: {', '.join(non_digit_chars)}\nValid examples: '1234567', '9876543'"
+        if len(clean_data) != 7:
+            if len(clean_data) < 7:
+                return False, f"EAN-8 requires exactly 7 digits (current: {len(clean_data)} digits, need {7-len(clean_data)} more).\nValid examples: '1234567', '9876543'"
+            else:
+                return False, f"EAN-8 requires exactly 7 digits (current: {len(clean_data)} digits, {len(clean_data)-7} too many).\nValid examples: '1234567', '9876543'"
+        return True, ""
+    
+    elif barcode_type in ['ean13', 'jan']:
+        # EAN-13/JAN requires exactly 12 digits (13th is check digit)
+        clean_data = data.replace('-', '').replace(' ', '')
+        if not clean_data.isdigit():
+            non_digit_chars = [c for c in clean_data if not c.isdigit()]
+            return False, f"EAN-13/JAN only accepts numbers.\nInvalid characters: {', '.join(non_digit_chars)}\nValid examples: '123456789012', '978123456789'"
+        if len(clean_data) != 12:
+            if len(clean_data) < 12:
+                return False, f"EAN-13/JAN requires exactly 12 digits (current: {len(clean_data)} digits, need {12-len(clean_data)} more).\nValid examples: '123456789012', '978123456789'"
+            else:
+                return False, f"EAN-13/JAN requires exactly 12 digits (current: {len(clean_data)} digits, {len(clean_data)-12} too many).\nValid examples: '123456789012', '978123456789'"
+        return True, ""
+    
+    elif barcode_type == 'upca':
+        # UPC-A requires exactly 11 digits (12th is check digit)
+        clean_data = data.replace('-', '').replace(' ', '')
+        if not clean_data.isdigit():
+            return False, "UPC-A only accepts numbers.\nValid examples: '01234567890', '12345678901'"
+        if len(clean_data) != 11:
+            return False, f"UPC-A requires exactly 11 digits (current: {len(clean_data)} digits).\nValid examples: '01234567890', '12345678901'"
+        return True, ""
+    
+    elif barcode_type == 'isbn10':
+        # ISBN-10: 9 digits + check digit (can be X)
+        clean_data = data.replace('-', '').replace(' ', '').upper()
+        if len(clean_data) != 10:
+            return False, f"ISBN-10 requires exactly 10 characters (current: {len(clean_data)} characters).\nValid examples: '0123456789', '012345678X'"
+        # First 9 must be digits, last can be digit or X
+        if not clean_data[:9].isdigit():
+            return False, "ISBN-10: First 9 characters must be digits.\nValid examples: '0123456789', '012345678X'"
+        if not (clean_data[9].isdigit() or clean_data[9] == 'X'):
+            return False, "ISBN-10: Last character must be a digit or X.\nValid examples: '0123456789', '012345678X'"
+        return True, ""
+    
+    elif barcode_type == 'isbn13':
+        # ISBN-13: 13 digits (usually starts with 978 or 979)
+        clean_data = data.replace('-', '').replace(' ', '')
+        if not clean_data.isdigit():
+            return False, "ISBN-13 only accepts numbers.\nValid examples: '9780123456789', '9791234567890'"
+        if len(clean_data) != 13:
+            return False, f"ISBN-13 requires exactly 13 digits (current: {len(clean_data)} digits).\nValid examples: '9780123456789', '9791234567890'"
+        return True, ""
+    
+    elif barcode_type == 'issn':
+        # ISSN: 8 digits with format XXXX-XXXX
+        clean_data = data.replace('-', '').replace(' ', '').upper()
+        if len(clean_data) != 8:
+            return False, f"ISSN requires exactly 8 characters (current: {len(clean_data)} characters).\nValid examples: '12345678', '1234567X', '1234-5678'"
+        # First 7 must be digits, last can be digit or X
+        if not clean_data[:7].isdigit():
+            return False, "ISSN: First 7 characters must be digits.\nValid examples: '12345678', '1234567X'"
+        if not (clean_data[7].isdigit() or clean_data[7] == 'X'):
+            return False, "ISSN: Last character must be a digit or X.\nValid examples: '12345678', '1234567X'"
+        return True, ""
+    
+    elif barcode_type == 'pzn':
+        # PZN: 6 or 7 digits
+        clean_data = data.replace('-', '').replace(' ', '')
+        if not clean_data.isdigit():
+            return False, "PZN only accepts numbers.\nValid examples: '123456' (6 digits), '1234567' (7 digits)"
+        if len(clean_data) not in [6, 7]:
+            if len(clean_data) < 6:
+                return False, f"PZN requires at least 6 digits (current: {len(clean_data)} digits).\nValid examples: '123456' (6 digits), '1234567' (7 digits)"
+            else:
+                return False, f"PZN accepts maximum 7 digits (current: {len(clean_data)} digits).\nValid examples: '123456' (6 digits), '1234567' (7 digits)"
+        return True, ""
+    
+    # Default case
+    return True, ""
+
 def encode(data, encoding: str = "utf-8", **kwargs) -> str:
     """
     Encode data into a barcode and return as a special format string.
@@ -43,6 +214,11 @@ def encode(data, encoding: str = "utf-8", **kwargs) -> str:
     custom_text_content = kwargs.get('custom_text_content', '')
     hide_text = kwargs.get('hide_text', False)
     
+    # Validate data against barcode type
+    is_valid, error_message = validate_barcode_data(text, barcode_type)
+    if not is_valid:
+        raise ValueError(f"Data is not compatible with barcode type {barcode_type.upper()}:\n\n{error_message}")
+    
     # Map barcode types to available classes
     barcode_classes = {
         'code128': barcode.Code128,
@@ -61,40 +237,20 @@ def encode(data, encoding: str = "utf-8", **kwargs) -> str:
     barcode_class = barcode_classes.get(barcode_type.lower(), barcode.Code128)
     
     try:
-        # For numeric-only barcodes, check if text is valid
-        if barcode_type.lower() in ['ean8', 'ean13', 'jan', 'upca']:
-            # These require numeric input of specific length
-            if not text.isdigit():
-                # Convert to numeric representation
-                text = ''.join([str(ord(c)) for c in text])
-                # Pad or truncate to required length
-                if barcode_type.lower() == 'ean8':
-                    text = text[:7].ljust(7, '0')
-                elif barcode_type.lower() in ['ean13', 'jan']:
-                    text = text[:12].ljust(12, '0')
-                elif barcode_type.lower() == 'upca':
-                    text = text[:11].ljust(11, '0')
-        elif barcode_type.lower() in ['isbn10', 'isbn13']:
-            # ISBN requires specific format
-            if not (text.replace('-', '').replace(' ', '').isdigit() or 'X' in text.upper()):
-                # Convert to a valid ISBN-like format
-                numeric_text = ''.join([str(ord(c)) for c in text])
-                if barcode_type.lower() == 'isbn10':
-                    text = numeric_text[:9].ljust(9, '0')
-                else:
-                    text = '978' + numeric_text[:9].ljust(9, '0')
-        elif barcode_type.lower() == 'issn':
-            # ISSN requires specific format
-            if not text.replace('-', '').replace(' ', '').isdigit():
-                numeric_text = ''.join([str(ord(c)) for c in text])
-                text = numeric_text[:7].ljust(7, '0')
-        elif barcode_type.lower() == 'pzn':
-            # PZN requires numeric input
-            if not text.isdigit():
-                text = ''.join([str(ord(c)) for c in text])
-                text = text[:6].ljust(6, '0')
-        elif barcode_type.lower() == 'code39':
-            pass
+        # Store original text for decoding later
+        original_text = text
+        
+        # Prepare data for specific barcode types
+        barcode_data_text = text
+        
+        # Clean and format data for specific barcode types
+        if barcode_type.lower() in ['ean8', 'ean13', 'jan', 'upca', 'isbn10', 'isbn13', 'issn', 'pzn']:
+            # Remove formatting characters for numeric barcodes
+            barcode_data_text = text.replace('-', '').replace(' ', '')
+        
+        if barcode_type.lower() == 'code39':
+            # Code39 requires uppercase
+            barcode_data_text = text.upper()
         
         # Handle text display options
         display_text = text  # Original text to display
@@ -116,8 +272,8 @@ def encode(data, encoding: str = "utf-8", **kwargs) -> str:
             'write_text': not hide_text  # Control whether text is written or not
         })
         
-        # Generate barcode
-        code = barcode_class(text, writer=writer)
+        # Generate barcode using the cleaned/formatted data
+        code = barcode_class(barcode_data_text, writer=writer)
         
         # Create an image from the barcode
         buffer = io.BytesIO()
@@ -217,127 +373,12 @@ def encode(data, encoding: str = "utf-8", **kwargs) -> str:
                 # If image manipulation fails, use original barcode
                 pass
         
-        # Return special format string
-        return f"BARCODE:{len(barcode_data)}:{barcode_data.hex()}"
+        # Return special format string with original text preserved
+        return f"BARCODE:{len(barcode_data)}:{barcode_data.hex()}:ORIGINAL:{original_text}"
         
     except Exception as e:
-        # If specific barcode type fails, fall back to Code128
-        try:
-            # Handle text display options for fallback
-            display_text = text
-            if hide_text:
-                text_distance = 0
-                display_text = ""
-            elif custom_text_content and custom_text_content.strip():
-                display_text = custom_text_content.strip()
-            
-            writer = ImageWriter()
-            writer.set_options({
-                'module_width': module_width,
-                'module_height': module_height,
-                'quiet_zone': quiet_zone,
-                'text_distance': text_distance if not hide_text else 0,
-                'font_size': font_size,
-                'write_text': not hide_text
-            })
-            code = barcode.Code128(text, writer=writer)
-            buffer = io.BytesIO()
-            
-            if hide_text:
-                code.write(buffer, options={'write_text': False})
-            elif custom_text_content and custom_text_content.strip():
-                # Generate barcode without default text, we'll add custom text later
-                code.write(buffer, options={'write_text': False})
-            else:
-                code.write(buffer)
-            
-            barcode_data = buffer.getvalue()
-            
-            # If custom text is specified for fallback code as well
-            if custom_text_content and custom_text_content.strip() and not hide_text:
-                try:
-                    from PIL import Image, ImageDraw, ImageFont
-                    
-                    # Load the barcode image from buffer
-                    barcode_img = Image.open(io.BytesIO(barcode_data))
-                    
-                    # Create a new image with extra space for custom text
-                    img_width, img_height = barcode_img.size
-                    text_height = int(font_size + text_distance + 10)  # Extra padding, convert to int
-                    new_height = int(img_height + text_height)  # Convert to int
-                    new_img = Image.new('RGB', (img_width, new_height), 'white')
-                    
-                    # Paste the original barcode
-                    new_img.paste(barcode_img, (0, 0))
-                    
-                    # Add custom text
-                    draw = ImageDraw.Draw(new_img)
-                    # Improved font loading with better fallback chain
-                    font = None
-                    
-                    # Get current directory for relative font paths
-                    current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                    fonts_dir = os.path.join(current_dir, "fonts")
-                    
-                    font_paths = [
-                        # FiraCode in project fonts directory (highest priority)
-                        os.path.join(fonts_dir, "FiraCode-Regular.ttf"),
-                        os.path.join(fonts_dir, "FiraCode.ttf"),
-                        os.path.join(fonts_dir, "firacode-regular.ttf"),
-                        # FiraCode system installations
-                        "FiraCode-Regular.ttf",
-                        "C:/Windows/Fonts/FiraCode-Regular.ttf",
-                        f"C:/Users/{os.environ.get('USERNAME', 'user')}/AppData/Local/Microsoft/Windows/Fonts/FiraCode-Regular.ttf",
-                        "FiraCode.ttf", 
-                        "C:/Windows/Fonts/FiraCode.ttf",
-                        "firacode",
-                        # Consolas (excellent monospace font on Windows)
-                        "C:/Windows/Fonts/consola.ttf",
-                        "consolas.ttf",
-                        "C:/Windows/Fonts/consolab.ttf",  # Bold version
-                        # Courier New (classic monospace)
-                        "C:/Windows/Fonts/cour.ttf",
-                        "C:/Windows/Fonts/courbd.ttf",
-                        "courier.ttf",
-                        # DejaVu Sans Mono (good cross-platform option)
-                        "DejaVuSansMono.ttf",
-                        "DejaVuSansMono-Bold.ttf",
-                        # Arial fallbacks
-                        "C:/Windows/Fonts/arial.ttf",
-                        "arial.ttf"
-                    ]
-                    
-                    for font_path in font_paths:
-                        try:
-                            font = ImageFont.truetype(font_path, font_size)
-                            break
-                        except:
-                            continue
-                    
-                    # Final fallback to default font
-                    if font is None:
-                        font = ImageFont.load_default()
-                    
-                    # Calculate text position (centered)
-                    bbox = draw.textbbox((0, 0), custom_text_content, font=font)
-                    text_width = bbox[2] - bbox[0]
-                    text_x = (img_width - text_width) // 2
-                    text_y = int(img_height + text_distance)  # Convert to int
-                    
-                    draw.text((text_x, text_y), custom_text_content, fill='black', font=font)
-                    
-                    # Save the modified image back to buffer
-                    buffer = io.BytesIO()
-                    new_img.save(buffer, format='PNG')
-                    barcode_data = buffer.getvalue()
-                    
-                except Exception:
-                    # If image manipulation fails for fallback, use original
-                    pass
-            
-            return f"BARCODE:{len(barcode_data)}:{barcode_data.hex()}"
-        except Exception:
-            raise ValueError(f"Failed to generate barcode: {str(e)}")
+        # Re-raise the error for proper error handling
+        raise ValueError(f"Cannot create barcode {barcode_type.upper()}: {str(e)}")
 
 def decode(text: str, encoding: str = "utf-8") -> bytes:
     """
@@ -351,9 +392,18 @@ def decode(text: str, encoding: str = "utf-8") -> bytes:
     if not text.startswith("BARCODE:"):
         raise ValueError("Invalid barcode format")
     
-    # Extract the data part
-    parts = text.split(':', 2)
-    if len(parts) != 3:
+    # Check if this is the new format with original text preserved
+    if ":ORIGINAL:" in text:
+        # New format: BARCODE:length:hex_data:ORIGINAL:original_text
+        parts = text.split(':ORIGINAL:', 1)
+        if len(parts) == 2:
+            # Return the original text as bytes
+            original_text = parts[1]
+            return original_text.encode(encoding)
+    
+    # Old format or fallback: extract and decode the barcode image
+    parts = text.split(':', 3)  # Allow for more parts in case of new format
+    if len(parts) < 3:
         raise ValueError("Invalid barcode format")
     
     # Convert hex back to binary
@@ -368,13 +418,72 @@ def decode(text: str, encoding: str = "utf-8") -> bytes:
         raise ValueError("No barcode found in the image")
     
     # Get the data from the first barcode found
-    barcode_text = decoded_objects[0].data
+    barcode_raw = decoded_objects[0]
+    barcode_text = barcode_raw.data
+    barcode_format = barcode_raw.type
+    
+    # Convert to string if bytes
+    if isinstance(barcode_text, bytes):
+        decoded_text = barcode_text.decode(encoding)
+    else:
+        decoded_text = str(barcode_text)
+    
+    # Try to reverse the formatting that standard barcodes add
+    original_data = reverse_barcode_formatting(decoded_text, barcode_format)
     
     # Return the decoded data as bytes
-    if isinstance(barcode_text, bytes):
-        return barcode_text
-    else:
-        return barcode_text.encode(encoding)
+    return original_data.encode(encoding)
+
+def reverse_barcode_formatting(decoded_text: str, barcode_format: str) -> str:
+    """
+    Try to reverse the standard formatting that barcode libraries add.
+    
+    :param decoded_text: The text decoded by pyzbar
+    :param barcode_format: The barcode format detected by pyzbar
+    :return: The original data if possible to reverse, otherwise the decoded text
+    """
+    try:
+        if barcode_format == "CODE39":
+            # PZN barcodes are encoded as Code39 and pyzbar returns "PZN-XXXXXXX" 
+            if decoded_text.startswith("PZN-") and len(decoded_text) >= 5:
+                # Extract just the numeric part, remove check digit if present
+                numeric_part = decoded_text[4:]  # Remove "PZN-"
+                # Check if it's likely our original data (6-7 digits)
+                if numeric_part.isdigit() and len(numeric_part) in [7, 8]:
+                    # Remove the last digit (check digit) to get back original
+                    return numeric_part[:-1]
+            
+            # Code39 sometimes adds trailing characters, remove them
+            if decoded_text.endswith('$'):
+                return decoded_text[:-1]
+                
+        elif barcode_format == "EAN8":
+            # EAN8 barcodes add check digits
+            if decoded_text.isdigit() and len(decoded_text) == 8:
+                # Remove check digit to get original 7 digits
+                return decoded_text[:-1]
+                
+        elif barcode_format == "EAN13":
+            # EAN13 could be regular EAN13 or UPC-A encoded as EAN13
+            if decoded_text.isdigit() and len(decoded_text) == 13:
+                # Check if this might be UPC-A encoded as EAN13
+                if decoded_text.startswith("00"):
+                    # UPC-A: Remove "00" prefix and check digit, but need to preserve the leading zero
+                    upc_part = decoded_text[2:-1]  # Remove "00" and check digit
+                    # The original UPC-A likely had a leading zero, so add it back
+                    if len(upc_part) == 10:
+                        return "0" + upc_part
+                    return upc_part
+                else:
+                    # Regular EAN13 - remove check digit to get original 12 digits
+                    return decoded_text[:-1]
+    
+    except Exception:
+        # If anything fails, just return the original decoded text
+        pass
+    
+    # Default: return the decoded text as-is
+    return decoded_text
 
 def save_barcode_image(text: str, output_path: str) -> bool:
     """
@@ -385,9 +494,15 @@ def save_barcode_image(text: str, output_path: str) -> bool:
     :return: True if successful, False otherwise
     """
     try:
-        # Extract the data part
-        parts = text.split(':', 2)
-        if len(parts) != 3:
+        # Handle new format with original text
+        if ":ORIGINAL:" in text:
+            # New format: BARCODE:length:hex_data:ORIGINAL:original_text
+            parts = text.split(':ORIGINAL:', 1)[0].split(':')
+        else:
+            # Old format: BARCODE:length:hex_data
+            parts = text.split(':')
+        
+        if len(parts) < 3:
             return False
         
         # Convert hex back to binary

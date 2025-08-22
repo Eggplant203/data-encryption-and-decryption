@@ -8,6 +8,7 @@ from src.sudoku_viewer import show_sudoku_viewer
 from src.chess_viewer import show_chess_viewer
 from src.file_processor import ChunkProcessor
 from src.progress_handler import ProgressHandler
+from src import admin  # Import admin debug module
 import subprocess
 import sys
 import tempfile
@@ -220,6 +221,37 @@ def process_decode(file_path, mode, key_text, mode_options=None):
                 # User chose No - continue with different mode (Base64 for non-PNG files)
                 mode = MODES["Base64"]
                 mode_name = "Base64"
+                
+        # Special case for Barcode PNG files - use direct decoding to avoid threading issues
+        if file_path.lower().endswith('.png') and mode_name == "Barcode":
+            try:
+                # Create progress handler like other modes
+                file_size = os.path.getsize(file_path)
+                progress_handler = ProgressHandler("Decoding Barcode", file_size)
+                
+                # Update progress to show we're starting
+                progress_handler.update_progress(0, 100)
+                progress_handler.update_additional_status("Reading PNG file...")
+                
+                processor = ChunkProcessor(progress_handler)
+                
+                # Update progress
+                progress_handler.update_progress(50, 100) 
+                progress_handler.update_additional_status("Decoding barcode...")
+                
+                result_text = processor.decode_barcode_png(file_path)
+                
+                # Complete with success - this will show the result in success window
+                progress_handler.complete(success=True, barcode_content=result_text)
+                return
+                
+            except Exception as barcode_error:
+                # Show error in progress window if it exists
+                if 'progress_handler' in locals() and progress_handler:
+                    progress_handler.complete(success=False, error_msg=str(barcode_error))
+                else:
+                    messagebox.showerror("Error", f"Failed to decode barcode PNG:\n{str(barcode_error)}")
+                return
         file_size = os.path.getsize(file_path)
         
         # Use ChunkProcessor to handle large files with progress bar
@@ -309,7 +341,7 @@ def process_decode(file_path, mode, key_text, mode_options=None):
                     progress_handler.complete(success=True, qr_content=barcode_result_text)
                 else:
                     # Fallback if progress window was closed
-                    ProgressHandler.show_success("Barcode decoded", barcode_result_text, is_qr_content=True)
+                    ProgressHandler.show_success("Barcode decoded", barcode_result_text, is_barcode_content=True)
                 
                 # Early return to skip file creation and normal success handling
                 return
@@ -543,9 +575,22 @@ def start_gui():
         operation = mode_var.get()
         
         if selected_mode in TEXT_INPUT_MODES and operation == "encode":
-            # For QR Code mode, set the text directly
+            # For text input modes (QR Code, Barcode), set the text directly
+            if selected_mode == "Barcode":
+                # Get barcode type from mode options if available
+                barcode_type = "code128"  # Default
+                if "barcode_type" in mode_options_vars:
+                    barcode_type = mode_options_vars["barcode_type"].get()
+                
+                # Import barcode_mode and get appropriate example
+                from src import barcode_mode
+                example_text = barcode_mode.get_barcode_example_text(barcode_type)
+            else:
+                # For QR Code and other text modes
+                example_text = "Hello World!"
+                
             text_multiline.delete("1.0", "end")
-            text_multiline.insert("1.0", "Hello World!")
+            text_multiline.insert("1.0", example_text)
             update_char_count()
         else:
             # For other modes, create/select example.txt file
@@ -1081,6 +1126,104 @@ def start_gui():
                 combo = ttk.Combobox(mode_options_frame, textvariable=var, 
                                    values=option_config['choices'], state="readonly", width=15)
                 combo.grid(row=row, column=1, padx=5, sticky="w")
+                
+                # Add tooltip button for barcode_type
+                if option_name == "barcode_type" and mode_name == "Barcode":
+                    # Create tooltip button (circle with ?)
+                    tooltip_btn = tk.Button(mode_options_frame, text="?", 
+                                          font=("Arial", 8, "bold"),
+                                          width=2, height=1,
+                                          relief="raised", bd=1)
+                    tooltip_btn.grid(row=row, column=2, padx=(2, 0), sticky="w")
+                    
+                    # Create tooltip function
+                    def create_tooltip(widget, text_func, var):
+                        def show_tooltip(event):
+                            # Hide existing tooltip first
+                            if hasattr(widget, 'tooltip_window'):
+                                widget.tooltip_window.destroy()
+                                del widget.tooltip_window
+                            
+                            # Get current barcode type
+                            current_type = var.get()
+                            from src import barcode_mode
+                            tooltip_text = barcode_mode.get_barcode_tooltip_text(current_type)
+                            
+                            # Create tooltip window
+                            tooltip = tk.Toplevel()
+                            tooltip.wm_overrideredirect(True)
+                            tooltip.configure(bg="lightyellow", relief="solid", bd=1)
+                            
+                            # Position tooltip near mouse
+                            x = widget.winfo_rootx() + 20
+                            y = widget.winfo_rooty() + 20
+                            tooltip.geometry(f"+{x}+{y}")
+                            
+                            # Add tooltip text
+                            label = tk.Label(tooltip, text=tooltip_text,
+                                           font=("Arial", 9), bg="lightyellow",
+                                           wraplength=400, justify="left")
+                            label.pack(padx=5, pady=3)
+                            
+                            # Store tooltip reference
+                            widget.tooltip_window = tooltip
+                            
+                            # Auto-hide tooltip after 5 seconds
+                            def auto_hide():
+                                if hasattr(widget, 'tooltip_window'):
+                                    widget.tooltip_window.destroy()
+                                    del widget.tooltip_window
+                            widget.after(5000, auto_hide)
+                        
+                        def handle_help_button_click(event):
+                            # Start listening for Konami sequence when ? is clicked
+                            admin.konami_handler.start_listening()
+                            admin.log_debug_message("Help button (?) clicked - Started listening for Konami sequence")
+                            
+                            # Make the widget focusable and focus it to receive key events
+                            widget.focus_set()
+                            
+                            # Then show the tooltip
+                            show_tooltip(event)
+                            
+                        def hide_tooltip(event):
+                            if hasattr(widget, 'tooltip_window'):
+                                widget.tooltip_window.destroy()
+                                del widget.tooltip_window
+                        
+                        def hide_on_focus_out(event):
+                            # Hide tooltip when clicking elsewhere
+                            widget.after(100, lambda: hide_tooltip(None))
+                                
+                        widget.bind("<Enter>", show_tooltip)
+                        widget.bind("<Leave>", hide_tooltip)
+                        widget.bind("<Button-1>", handle_help_button_click)  # Modified to handle Konami sequence
+                        
+                        # Bind key events to the tooltip button for Konami code
+                        widget.bind("<KeyPress>", admin.handle_key_press_event, add='+')
+                        widget.bind("<KeyRelease>", admin.handle_key_release_event, add='+')
+                        
+                        # Hide tooltip when clicking elsewhere in the application
+                        widget.winfo_toplevel().bind("<Button-1>", hide_on_focus_out, add="+")
+                    
+                    create_tooltip(tooltip_btn, None, var)
+                    widgets.append(tooltip_btn)
+                
+                # Add callback for barcode_type to update example text
+                if option_name == "barcode_type" and mode_name == "Barcode":
+                    def update_barcode_example(*args):
+                        # Update example text when barcode type changes
+                        if mode_var.get() == "encode" and mode_combo.get() == "Barcode":
+                            selected_mode = mode_combo.get()
+                            if selected_mode in TEXT_INPUT_MODES:
+                                from src import barcode_mode
+                                barcode_type = var.get()
+                                example_text = barcode_mode.get_barcode_example_text(barcode_type)
+                                text_multiline.delete("1.0", "end")
+                                text_multiline.insert("1.0", example_text)
+                                update_char_count()
+                    var.trace('w', update_barcode_example)
+                
                 widgets.append(combo)
                 mode_options_vars[option_name] = var
                 
@@ -1673,4 +1816,29 @@ def start_gui():
     toggle_strenc()
     update_mode_info()
     combined_mode_update()  # Initialize options and window size properly
+    
+    # Initialize admin debug system
+    admin.init_debug_system(root)
+    
+    # Setup Konami code listener on the root window
+    # Make root window focusable to receive key events
+    root.focus_set()
+    root.bind("<KeyPress>", admin.handle_key_press_event)
+    root.bind("<KeyRelease>", admin.handle_key_release_event)
+    
+    # Also bind to all child widgets to capture key events from anywhere
+    def bind_konami_to_all_children(widget):
+        try:
+            for child in widget.winfo_children():
+                child.bind("<KeyPress>", admin.handle_key_press_event, add='+')
+                child.bind("<KeyRelease>", admin.handle_key_release_event, add='+')
+                bind_konami_to_all_children(child)
+        except:
+            pass  # Skip widgets that don't support binding
+    
+    bind_konami_to_all_children(root)
+    
+    # Log debug message for initialization
+    admin.log_debug_message("GUI initialized with Konami code listener")
+    
     root.mainloop()
