@@ -1,0 +1,4 @@
+Test QR Code Options
+This is a test file to verify that QR code options work properly in the GUI.
+测试中文字符
+🌟 Unicode symbols

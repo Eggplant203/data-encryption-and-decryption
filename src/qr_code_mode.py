@@ -1,8 +1,9 @@
 # src/qr_code_mode.py
 import qrcode
 import io
+import numpy as np
 from PIL import Image
-from pyzbar import pyzbar
+import cv2
 
 def encode(data, encoding: str = "utf-8", **kwargs) -> str:
     """
@@ -17,7 +18,7 @@ def encode(data, encoding: str = "utf-8", **kwargs) -> str:
     if isinstance(data, bytes):
         try:
             # Try to decode the bytes to string 
-            text = data.decode(encoding, errors="replace")
+            text = data.decode(encoding)
         except UnicodeDecodeError:
             # If fails, use hex representation
             text = data.hex()
@@ -81,19 +82,19 @@ def decode(text: str, encoding: str = "utf-8") -> bytes:
     # Load image from binary data
     img = Image.open(io.BytesIO(qr_data))
     
-    # Decode QR code
-    decoded_objects = pyzbar.decode(img)
-    if not decoded_objects:
+    # Convert PIL image to OpenCV format
+    img_array = np.array(img.convert('RGB'))
+    img_cv = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
+    
+    # Decode QR code with OpenCV
+    qr_detector = cv2.QRCodeDetector()
+    decoded_text, bbox, _ = qr_detector.detectAndDecode(img_cv)
+    
+    if not decoded_text:
         raise ValueError("No QR code found in the image")
     
-    # Get the data from the first QR code found
-    qr_text = decoded_objects[0].data
-    
     # Return the decoded data as bytes
-    if isinstance(qr_text, bytes):
-        return qr_text
-    else:
-        return qr_text.encode(encoding)
+    return decoded_text.encode(encoding)
 
 def save_qr_image(text: str, output_path: str) -> bool:
     """
