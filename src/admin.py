@@ -1058,22 +1058,109 @@ class DebugWindow:
         timestamp = time.strftime('[%H:%M:%S]')
         self.test_results.insert("end", f"\n{timestamp} BENCHMARK - {mode_name}\n")
         
+        # Import the required modules
+        from src import gui
+        
+        # Get the actual mode module
+        mode_module = None
+        if mode_name in gui.MODES:
+            mode_module = gui.MODES[mode_name]
+        else:
+            self.test_results.insert("end", f"{time.strftime('[%H:%M:%S]')} Mode '{mode_name}' not found\n")
+            return
+        
         # Test with different data sizes
         test_sizes = [100, 1000, 10000, 50000]  # bytes
         
+        self.test_results.insert("end", f"{time.strftime('[%H:%M:%S]')} Testing encoding performance...\n")
+        
         for size in test_sizes:
-            test_data = "A" * size
+            test_data_str = "A" * size
+            test_data_bytes = test_data_str.encode('utf-8')
+            
             try:
-                # Time the operations
-                import time
+                # Time the encoding operation
                 start = time.perf_counter()
-                # Simulate processing time
+                
+                # Use proper encoding method with signature inspection
+                import inspect
+                sig = inspect.signature(mode_module.encode)
+                
+                # Prepare encoding parameters based on function signature
+                encode_params = {}
+                
+                # Add encoding parameter if supported
+                if 'encoding' in sig.parameters:
+                    encode_params['encoding'] = 'utf-8'
+                
+                # Handle special cases for modes that need extra parameters
+                if mode_name == 'Chess':
+                    encode_params['chess_fen'] = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+                elif mode_name == 'Sudoku':
+                    encode_params['grid_seed'] = '123456789'
+                
+                # Determine if mode expects bytes or string data
+                first_param = list(sig.parameters.keys())[0]
+                param_annotation = sig.parameters[first_param].annotation
+                
+                # Use bytes for modes that expect bytes, string for others
+                if (param_annotation == bytes or 
+                    mode_name in ['Base32', 'Base64', 'Base85', 'Base91', 'Binary', 'Hex', 'Braille', 'Sound', 'Image', 'Zero-Width', 'Emoji', 'UUID']):
+                    test_data_to_use = test_data_bytes
+                else:
+                    test_data_to_use = test_data_str
+                    
+                # Call encode with appropriate parameters
+                if encode_params:
+                    encoded_result = mode_module.encode(test_data_to_use, **encode_params)
+                else:
+                    encoded_result = mode_module.encode(test_data_to_use)
+                    
                 end = time.perf_counter()
                 
-                self.test_results.insert("end", f"Size {size}B: {(end-start)*1000:.2f}ms\n")
+                encode_time = (end - start) * 1000  # Convert to milliseconds
+                
+                # Test decoding if available
+                decode_time = 0
+                if hasattr(mode_module, 'decode'):
+                    try:
+                        start = time.perf_counter()
+                        
+                        # Use proper decoding method
+                        decode_sig = inspect.signature(mode_module.decode)
+                        decode_params = {}
+                        
+                        if 'encoding' in decode_sig.parameters:
+                            decode_params['encoding'] = 'utf-8'
+                        
+                        # Add same special parameters for decode
+                        if mode_name == 'Chess' and 'chess_fen' in decode_sig.parameters:
+                            decode_params['chess_fen'] = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+                        elif mode_name == 'Sudoku' and 'grid_seed' in decode_sig.parameters:
+                            decode_params['grid_seed'] = '123456789'
+                            
+                        if decode_params:
+                            decoded_result = mode_module.decode(encoded_result, **decode_params)
+                        else:
+                            decoded_result = mode_module.decode(encoded_result)
+                            
+                        end = time.perf_counter()
+                        decode_time = (end - start) * 1000
+                    except Exception as decode_error:
+                        decode_time = -1  # Decode failed
+                
+                # Calculate throughput (KB/s for better readability)
+                throughput_kbs = (size / 1024) / ((encode_time / 1000) if encode_time > 0 else 0.001)
+                
+                if decode_time >= 0:
+                    self.test_results.insert("end", f"Size {size:>6}B: Encode {encode_time:>7.2f}ms, Decode {decode_time:>7.2f}ms, Throughput {throughput_kbs:>8.2f}KB/s\n")
+                else:
+                    self.test_results.insert("end", f"Size {size:>6}B: Encode {encode_time:>7.2f}ms, Decode FAILED, Throughput {throughput_kbs:>8.2f}KB/s\n")
+                    
             except Exception as e:
-                self.test_results.insert("end", f"Size {size}B: ERROR - {e}\n")
+                self.test_results.insert("end", f"Size {size:>6}B: ERROR - {str(e)[:70]}\n")
         
+        self.test_results.insert("end", f"{time.strftime('[%H:%M:%S]')} Benchmark completed\n")
         self.test_results.see("end")
     
     def check_file_security(self):
