@@ -822,7 +822,7 @@ class DebugWindow:
         
         self.test_mode_var = tk.StringVar()
         mode_combo = ttk.Combobox(mode_frame, textvariable=self.test_mode_var, state="readonly")
-        mode_combo['values'] = ['Base64', 'Base32', 'Hex', 'Binary', 'Chess', 'Sudoku', 'Braille', 'Emoji', 'QR Code', 'Image', 'Sound', 'Barcode', 'UUID', 'Zero-Width']
+        mode_combo['values'] = ['Base32', 'Base64', 'Base85', 'Base91', 'Barcode', 'Binary', 'Braille', 'Chess', 'Emoji', 'Hex', 'Image', 'QR Code', 'Sound', 'Sudoku', 'UUID', 'Zero-Width']
         mode_combo.pack(side="left", padx=(5,0), fill="x", expand=True)
         
         # Test data input
@@ -995,18 +995,20 @@ class DebugWindow:
         try:
             # Import the mode dynamically
             mode_modules = {
+                'Base32': 'base32_mode',
                 'Base64': 'base64_mode',
-                'Base32': 'base32_mode', 
-                'Hex': 'hex_mode',
-                'Binary': 'binary_mode',
-                'Chess': 'chess_mode',
-                'Sudoku': 'sudoku_mode',
-                'Braille': 'braille_mode',
-                'Emoji': 'emoji_mode',
-                'QR Code': 'qr_code_mode',
-                'Image': 'image_mode',
-                'Sound': 'sound_mode',
+                'Base85': 'base85_mode',
+                'Base91': 'base91_mode',
                 'Barcode': 'barcode_mode',
+                'Binary': 'binary_mode',
+                'Braille': 'braille_mode',
+                'Chess': 'chess_mode',
+                'Emoji': 'emoji_mode',
+                'Hex': 'hex_mode',
+                'Image': 'image_mode',
+                'QR Code': 'qr_code_mode',
+                'Sound': 'sound_mode',
+                'Sudoku': 'sudoku_mode',
                 'UUID': 'uuid_mode',
                 'Zero-Width': 'zero_width_mode'
             }
